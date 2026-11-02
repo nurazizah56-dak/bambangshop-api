@@ -119,37 +119,181 @@ function renderCategoryList(categories) {
 
 // TODO: Implement getCookie(name) helper function to extract 'csrftoken' from document.cookie.
 function getCookie(name) {
-    // [Implement your getCookie function here]
-    return null;
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
 }
 
 // TODO: Implement writeApi(url, method, payload) helper attaching 'X-CSRFToken' header.
 async function writeApi(url, method, payload) {
-    // [Implement your writeApi helper here]
-    return null;
+    const options = {
+        method: method,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken') || '',
+        }
+    };
+
+    if (payload) {
+        options.headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify(payload);
+    }
+
+    const response = await fetch(url, options);
+    let data = null;
+    if (response.status !== 204) {
+        try {
+            data = await response.json();
+        } catch (e) {
+            data = null;
+        }
+    }
+
+    if (!response.ok) {
+        const errorMsg = apiErrorMessage(data, response.status);
+        throw new Error(errorMsg);
+    }
+
+    return data;
 }
 
 // TODO: Implement fetchProducts(searchQuery, categoryId) using Fetch API with abort controller.
 async function fetchProducts(searchQuery = '', categoryId = '') {
-    // [Implement fetchProducts here, calling displayPageSection and gridContainer.replaceChildren]
+    if (productsAbortController) {
+        productsAbortController.abort();
+    }
+    productsAbortController = new AbortController();
+
+    const searchInput = document.getElementById('search-input');
+    const categoryFilter = document.getElementById('category-filter');
+    const search = searchQuery || (searchInput ? searchInput.value : '');
+    const category = categoryId || (categoryFilter ? categoryFilter.value : '');
+
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (category) params.append('category', category);
+
+    const url = params.toString() ? `${BASE_PRODUCTS_ENDPOINT}?${params.toString()}` : BASE_PRODUCTS_ENDPOINT;
+
+    displayPageSection({ showLoading: true });
+
+    try {
+        const response = await fetch(url, { signal: productsAbortController.signal });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const products = Array.isArray(data) ? data : (data.results || []);
+
+        if (products.length === 0) {
+            displayPageSection({ showEmpty: true });
+        } else {
+            const gridContainer = document.getElementById('grid');
+            if (gridContainer) {
+                const cardElements = products.map(product => buildProductCardElement(product));
+                gridContainer.replaceChildren(...cardElements);
+            }
+            displayPageSection({ showGrid: true });
+        }
+    } catch (error) {
+        if (error.name === 'AbortError') return;
+        displayPageSection({ showError: true });
+    }
 }
 
 // TODO: Implement loadCategories(selectedId) fetching BASE_CATEGORIES_ENDPOINT and populating selects.
 async function loadCategories(selectedId = null) {
-    // [Implement loadCategories here and call renderCategoryList]
+    try {
+        const response = await fetch(BASE_CATEGORIES_ENDPOINT);
+        if (!response.ok) return;
+        const data = await response.json();
+        const categories = Array.isArray(data) ? data : (data.results || []);
+
+        const categoryFilter = document.getElementById('category-filter');
+        const productCategorySelect = document.getElementById('product-category');
+
+        if (categoryFilter) {
+            const currentVal = selectedId || categoryFilter.value;
+            categoryFilter.innerHTML = '<option value="">All Categories</option>';
+            categories.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.id;
+                opt.textContent = cat.name;
+                categoryFilter.appendChild(opt);
+            });
+            categoryFilter.value = currentVal;
+        }
+
+        if (productCategorySelect) {
+            const currentVal = productCategorySelect.value;
+            productCategorySelect.innerHTML = '<option value="">Select a category...</option>';
+            categories.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.id;
+                opt.textContent = cat.name;
+                productCategorySelect.appendChild(opt);
+            });
+            if (currentVal) productCategorySelect.value = currentVal;
+        }
+
+        renderCategoryList(categories);
+    } catch (e) {
+        console.error('Failed to load categories', e);
+    }
 }
 window.loadCategories = loadCategories;
 
 // TODO: Implement addProduct(event) form submission handler calling writeApi(BASE_PRODUCTS_ENDPOINT, 'POST', payload).
 async function addProduct(event) {
     event.preventDefault();
-    // [Implement addProduct here]
+    const form = event.target;
+    const payload = {
+        name: document.getElementById('product-name')?.value,
+        sku: document.getElementById('product-sku')?.value,
+        category: document.getElementById('product-category')?.value,
+        price: parseFloat(document.getElementById('product-price')?.value),
+        stock: parseInt(document.getElementById('product-stock')?.value || 0, 10),
+    };
+
+    try {
+        await writeApi(BASE_PRODUCTS_ENDPOINT, 'POST', payload);
+        showToast('Product created successfully!', 'success');
+        form.reset();
+        const modal = document.getElementById('add-product-modal');
+        if (modal) modal.classList.add('hide');
+        fetchProducts();
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
 }
 
 // TODO: Implement addCategory(event) form submission handler calling writeApi(BASE_CATEGORIES_ENDPOINT, 'POST', payload).
 async function addCategory(event) {
     event.preventDefault();
-    // [Implement addCategory here]
+    const form = event.target;
+    const payload = {
+        name: document.getElementById('category-name')?.value,
+    };
+    const slugVal = document.getElementById('category-slug')?.value;
+    if (slugVal && slugVal.trim() !== '') {
+        payload.slug = slugVal.trim();
+    }
+
+    try {
+        await writeApi(BASE_CATEGORIES_ENDPOINT, 'POST', payload);
+        showToast('Category created successfully!', 'success');
+        form.reset();
+        await loadCategories();
+        fetchProducts();
+    } catch (error) {
+        showToast(error.message, 'error');
+    }
 }
 
 // =============================================================================
@@ -167,9 +311,68 @@ document.addEventListener('DOMContentLoaded', () => {
     if (categoryForm) categoryForm.addEventListener('submit', addCategory);
 
     // TODO: Attach event delegation on categoryListContainer for deleting categories.
+    if (categoryListContainer) {
+        categoryListContainer.addEventListener('click', async (e) => {
+            const btn = e.target.closest('[data-category-action="delete"]');
+            if (!btn) return;
+            const categoryId = btn.dataset.id;
+            if (!confirm('Are you sure you want to delete this category?')) return;
+            try {
+                await writeApi(`${BASE_CATEGORIES_ENDPOINT}${categoryId}/`, 'DELETE');
+                showToast('Category deleted successfully!', 'success');
+                await loadCategories();
+                fetchProducts();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        });
+    }
+
     // TODO: Attach event delegation on gridContainer for restock and delete actions.
+    if (gridContainer) {
+        gridContainer.addEventListener('click', async (e) => {
+            const restockBtn = e.target.closest('[data-action="restock"]');
+            const deleteBtn = e.target.closest('[data-action="delete"]');
+
+            if (restockBtn) {
+                const productId = restockBtn.dataset.id;
+                try {
+                    await writeApi(`${BASE_PRODUCTS_ENDPOINT}${productId}/restock/`, 'POST', { amount: 5 });
+                    showToast('Product restocked (+5)!', 'success');
+                    fetchProducts();
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            } else if (deleteBtn) {
+                const productId = deleteBtn.dataset.id;
+                if (!confirm('Are you sure you want to delete this product?')) return;
+                try {
+                    await writeApi(`${BASE_PRODUCTS_ENDPOINT}${productId}/`, 'DELETE');
+                    showToast('Product deleted successfully!', 'success');
+                    fetchProducts();
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            }
+        });
+    }
+
     // TODO: Attach change listener on categoryFilter.
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', () => {
+            fetchProducts();
+        });
+    }
+
     // TODO: Attach input listener with debounce on searchInput.
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => {
+                fetchProducts();
+            }, 300);
+        });
+    }
 
     // Initial fetch
     fetchProducts();
