@@ -19,12 +19,12 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'authentication',
     # Milestone 1: Register rest_framework, rest_framework.authtoken, and catalog
-    # 'rest_framework',
-    # 'rest_framework.authtoken',
-    # 'catalog',
+    'rest_framework',
+    'rest_framework.authtoken',
+    'catalog',
     # Milestone 3: Register django_filters and drf_spectacular
-    # 'django_filters',
-    # 'drf_spectacular',
+    'django_filters',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -84,22 +84,22 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Milestone 3: Configure REST_FRAMEWORK and SPECTACULAR_SETTINGS
-# REST_FRAMEWORK = {
-#     'DEFAULT_AUTHENTICATION_CLASSES': [
-#         'rest_framework.authentication.TokenAuthentication',
-#         'rest_framework.authentication.SessionAuthentication',
-#     ],
-#     'DEFAULT_PERMISSION_CLASSES': [
-#         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
-#     ],
-#     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-#     'PAGE_SIZE': 10,
-#     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-# }
-#
-# SPECTACULAR_SETTINGS = {
-#     'TITLE': 'BambangShop Catalog API',
-#     'DESCRIPTION': 'Enterprise RESTful API for Catalog and Product Management',
-#     'VERSION': '1.0.0',
-#     'SERVE_INCLUDE_SCHEMA': False,
-# }
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'BambangShop Catalog API',
+    'DESCRIPTION': 'Enterprise RESTful API for Catalog and Product Management',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
