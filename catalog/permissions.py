@@ -5,7 +5,15 @@ from rest_framework import permissions
 # =============================================================================
 # Milestone 2: Define IsOwnerOrReadOnly custom permission class
 # =============================================================================
-#
-# TODO: Implement IsOwnerOrReadOnly extending permissions.BasePermission.
-#       Allow SAFE_METHODS (GET, HEAD, OPTIONS) for any user,
-#       and restrict mutating requests to obj.owner == request.user.
+class IsOwnerOrReadOnly(permissions.BasePermission):
+    """
+    Custom permission to only allow owners of an object to edit or delete it.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        # Read permissions (GET, HEAD, OPTIONS) diizinkan untuk siapa saja
+        if request.method in permissions.SAFE_METHODS:
+            return True
+
+        # Modifikasi (PUT, PATCH, DELETE) hanya diizinkan untuk owner objek tersebut
+        return obj.owner == request.user
